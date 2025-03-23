@@ -308,8 +308,14 @@ def readNerfSyntheticInfo(path, white_background, depths, eval, extension=".png"
                            ply_path=ply_path,
                            is_nerf_synthetic=True)
     return scene_info
-
+'''
+The sceneLoadTypeCallbacks dictionary is a mapping that associates scene types (e.g., "Colmap" and "Blender") 
+with their corresponding functions for loading scene information. 
+It acts as a centralized registry for handling different types of datasets, 
+allowing the program to dynamically select the appropriate function based on the scene type.
+'''
 sceneLoadTypeCallbacks = {
+    ''' Keys: Values '''
     "Colmap": readColmapSceneInfo,
     "Blender" : readNerfSyntheticInfo
 }

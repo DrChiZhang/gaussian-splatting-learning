@@ -46,6 +46,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         sys.exit(f"Trying to use sparse adam but it is not installed, please install the correct rasterizer using pip install [3dgs_accel].")
 
     first_iter = 0
+    '''
+    explain of the following code:
+    1. prepare_output_and_logger: create a tensorboard writer to log the training process
+    2. GaussianModel: create a GaussianModel object to store the SH degree and optimizer type
+    3. Scene: create a Scene object to store the dataset and GaussianModel object
+    '''
     tb_writer = prepare_output_and_logger(dataset)
     gaussians = GaussianModel(dataset.sh_degree, opt.optimizer_type)
     scene = Scene(dataset, gaussians)

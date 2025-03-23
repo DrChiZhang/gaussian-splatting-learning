@@ -23,6 +23,14 @@ def mkdir_p(folder_path):
         else:
             raise
 
+'''
+The searchForMaxIteration function is designed to find the maximum iteration number from a list of saved files in a given folder. 
+This is useful in scenarios where files are named with iteration numbers (e.g., checkpoints or logs), and you want to resume from the latest iteration.
+'''
 def searchForMaxIteration(folder):
+    '''
+    The os.listdir() function in Python is used to retrieve a list of all entries (files and directories) in a specified directory. 
+    It is part of the os module, which provides functions for interacting with the operating system.
+    '''
     saved_iters = [int(fname.split("_")[-1]) for fname in os.listdir(folder)]
     return max(saved_iters)

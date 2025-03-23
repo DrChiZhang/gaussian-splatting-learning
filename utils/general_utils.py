@@ -75,18 +75,37 @@ def strip_lowerdiag(L):
 def strip_symmetric(sym):
     return strip_lowerdiag(sym)
 
+'''
+build_rotation function constructs a 3D rotation matrix from a quaternion. 
+Quaternions are a compact and efficient way to represent rotations in 3D space, avoiding issues like gimbal lock that can occur with Euler angles.
+'''
 def build_rotation(r):
+    '''
+    r: (N,4) quaternion. 
+    Normalize the quaternion. 
+    The quaternion is normalized to ensure it represents a valid rotation. A valid quaternion has a unit norm
+    '''
     norm = torch.sqrt(r[:,0]*r[:,0] + r[:,1]*r[:,1] + r[:,2]*r[:,2] + r[:,3]*r[:,3])
-
     q = r / norm[:, None]
-
+    '''
+    Initialize a 3x3 rotation matrix R with zeros. 
+    A zero tensor of shape (N, 3, 3) is created to store the rotation matrices for all N quaternions.
+    '''
     R = torch.zeros((q.size(0), 3, 3), device='cuda')
-
+    '''
+    Extract the quaternion components.
+    The scalar (r) and vector (x, y, z) components of the quaternion are extracted for further computation.
+    '''
     r = q[:, 0]
     x = q[:, 1]
     y = q[:, 2]
     z = q[:, 3]
-
+    '''
+    Compute the rotation matrix.
+    The elements of the 3×3 rotation matrix are computed using the quaternion-to-matrix conversion formula. 
+    This formula ensures that the resulting matrix is orthogonal and represents a valid rotation.
+    Ref: https://danceswithcode.net/engineeringnotes/quaternions/quaternions.html
+    '''
     R[:, 0, 0] = 1 - 2 * (y*y + z*z)
     R[:, 0, 1] = 2 * (x*y - r*z)
     R[:, 0, 2] = 2 * (x*z + r*y)
@@ -97,16 +116,40 @@ def build_rotation(r):
     R[:, 2, 1] = 2 * (y*z + r*x)
     R[:, 2, 2] = 1 - 2 * (x*x + y*y)
     return R
-
+'''
+The build_scaling_rotation function constructs a transformation matrix that combines scaling and rotation operations in 3D space. 
+This matrix is used to transform 3D points or objects by applying scaling along the principal axes (x, y, z) 
+and then rotating them using a quaternion-based rotation.
+Inputs: 
+s: A tensor of shape (N, 3) representing scaling factors for each of the three axes (x, y, z) for N transformations.
+Example: [s = [[2.0, 3.0, 4.0]]](http://vscodecontentref/2) scales the x-axis by 2, the y-axis by 3, and the z-axis by 4.
+r: A tensor of shape (N, 4) representing quaternions that define the rotation for each of the N transformations.
+Quaternions are a compact way to represent 3D rotations without the risk of gimbal lock.
+Output:
+L: A tensor of shape (N, 3, 3) representing the transformation matrix that combines scaling and rotation operations.
+'''
 def build_scaling_rotation(s, r):
+    '''
+    Initialize a 3x3 scaling matrix L with zeros.
+    '''
     L = torch.zeros((s.shape[0], 3, 3), dtype=torch.float, device="cuda")
+    '''
+    Compute the rotation matrix R using the build_rotation function.
+    '''
     R = build_rotation(r)
-
+    '''
+    Set the diagonal elements of the scaling matrix L.
+    The diagonal elements of the scaling matrix are set to the scaling factors s along the x, y, and z axes.
+    '''
     L[:,0,0] = s[:,0]
     L[:,1,1] = s[:,1]
     L[:,2,2] = s[:,2]
-
+    '''
+    Compute the final transformation matrix.
+    The transformation matrix is computed by multiplying the scaling matrix L with the rotation matrix R.
+    '''
     L = R @ L
+    
     return L
 
 def safe_state(silent):

@@ -27,15 +27,44 @@ try:
 except:
     pass
 
-class GaussianModel:
-
+class GaussianModel:  
     def setup_functions(self):
+        '''
+        The build_covariance_from_scaling_rotation function computes a covariance matrix for Gaussian primitives in 3D space. 
+        Sigma = L @ L^T, where L = RS.
+        Inputs
+            scaling: A tensor representing the scaling factors for the Gaussian along the principal axes (x, y, z). This defines the size of the Gaussian in each direction.
+            scaling_modifier: A scalar or tensor used to modify the scaling values dynamically. This allows for adjustments to the Gaussian's size.
+            rotation: A tensor representing the rotation of the Gaussian in 3D space, typically encoded as quaternions. This defines the orientation of the Gaussian.
+        Outputs
+            symm: A symmetric covariance matrix for the Gaussian. This matrix encodes the Gaussian's shape and orientation in 3D space.
+        '''
         def build_covariance_from_scaling_rotation(scaling, scaling_modifier, rotation):
+            '''
+            Compute the covariance matrix for a Gaussian primitive in 3D space. 
+            Scaling: The diagonal elements of L represent the scaling factors along the x, y, and z axes.
+            Rotation: The rotation matrix (computed from the quaternion) is applied to orient the Gaussian in 3D space.
+            '''
             L = build_scaling_rotation(scaling_modifier * scaling, rotation)
+            '''
+            Compute the covariance matrix for the Gaussian primitive in 3D space.
+            Sigma = L @ L^T, where L = RS.
+            '''
             actual_covariance = L @ L.transpose(1, 2)
+            '''
+            Symmetrize the covariance matrix by averaging it with its transpose.
+            This is necessary because the matrix is not guaranteed to be symmetric due to numerical errors
+            '''
             symm = strip_symmetric(actual_covariance)
             return symm
-        
+        '''
+        1. scaling_activation: torch.exp, the activation function of scaling
+        2. scaling_inverse_activation: torch.log, the inverse activation function of scaling
+        3. covariance_activation: build_covariance_from_scaling_rotation, the activation function of covariance
+        4. opacity_activation: torch.sigmoid, the activation function of opacity
+        5. inverse_opacity_activation: inverse_sigmoid, the inverse activation function of opacity
+        6. rotation_activation: torch.nn.functional.normalize, the activation function of rotation
+        '''
         self.scaling_activation = torch.exp
         self.scaling_inverse_activation = torch.log
 
@@ -46,8 +75,24 @@ class GaussianModel:
 
         self.rotation_activation = torch.nn.functional.normalize
 
-
     def __init__(self, sh_degree, optimizer_type="default"):
+        '''
+        1. active_sh_degree: int, the current degree of SH
+        2. optimizer_type: str, the type of optimizer
+        3. max_sh_degree: int, the maximum degree of SH 
+        4. _xyz: torch.tensor, the tensor of xyz
+        5. _features_dc: torch.tensor, the tensor of dc features
+        6. _features_rest: torch.tensor, the tensor of rest features
+        7. _scaling: torch.tensor, the tensor of scaling
+        8. _rotation: torch.tensor, the tensor of rotation
+        9. _opacity: torch.tensor, the tensor of opacity
+        10. max_radii2D: torch.tensor, the tensor of max radii 2D
+        11. xyz_gradient_accum: torch.tensor, the tensor of xyz gradient accumulation
+        12. denom: torch.tensor, the tensor of denominator
+        13. optimizer: torch.optim, the optimizer
+        14. percent_dense: float, the percentage of dense
+        15. spatial_lr_scale: float, the scale of spatial learning rate  
+        '''
         self.active_sh_degree = 0
         self.optimizer_type = optimizer_type
         self.max_sh_degree = sh_degree  
