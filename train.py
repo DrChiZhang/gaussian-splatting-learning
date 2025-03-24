@@ -55,18 +55,45 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     tb_writer = prepare_output_and_logger(dataset)
     gaussians = GaussianModel(dataset.sh_degree, opt.optimizer_type)
     scene = Scene(dataset, gaussians)
+    '''
+    Initializes the optimizer and the learning rate scheduler.
+    Restore the model from a checkpoint if provided.
+    '''
     gaussians.training_setup(opt)
     if checkpoint:
+        '''
+        torch.load() is used to load the model from the checkpoint file.
+        The first return value is the model parameters, and the second return value is the iteration number.
+        '''
         (model_params, first_iter) = torch.load(checkpoint)
         gaussians.restore(model_params, opt)
-
+    '''
+    The following code is used to set the background color of the rendered image.
+    '''
     bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
+    '''
+    torch.tensor() is used to create a tensor from the bg_color list.
+    The dtype parameter is set to torch.float32, and the device parameter is set to "cuda".
+    '''
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
-
+    '''
+    Measure and record events on the GPU, such as the start and end of a computation.
+    Syntax:
+        torch.cuda.Event(enable_timing=False, blocking=False, interprocess=False)
+    Parameters
+        enable_timing (default: False): If True, the event will record timing information, allowing you to measure the time elapsed between two events.
+        blocking (default: False): If True, the event will wait for all previously queued GPU work to complete before recording the event.
+        interprocess (default: False): If True, the event can be used for cross-process synchronization.
+    '''
     iter_start = torch.cuda.Event(enable_timing = True)
     iter_end = torch.cuda.Event(enable_timing = True)
-
+    '''
+    Use sparse_adam optimizer if available and specified in the arguments.
+    '''
     use_sparse_adam = opt.optimizer_type == "sparse_adam" and SPARSE_ADAM_AVAILABLE 
+    '''
+    Initializes a learning rate decay function for adjusting the depth L1 weight.
+    '''
     depth_l1_weight = get_expon_lr_func(opt.depth_l1_weight_init, opt.depth_l1_weight_final, max_steps=opt.iterations)
 
     viewpoint_stack = scene.getTrainCameras().copy()

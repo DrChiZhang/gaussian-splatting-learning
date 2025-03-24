@@ -219,12 +219,28 @@ class GaussianModel:
         self.pretrained_exposures = None
         exposure = torch.eye(3, 4, device="cuda")[None].repeat(len(cam_infos), 1, 1)
         self._exposure = nn.Parameter(exposure.requires_grad_(True))
-
+    '''
+    The training_setup function initializes the optimizer and the learning rate scheduler.
+    Inputs
+        training_args: the training arguments   
+    '''
     def training_setup(self, training_args):
+        '''
+        Set Training Parameters:
+        self.percent_dense: Sets the percentage of dense points from the training_args.
+        self.xyz_gradient_accum: Initializes a tensor to accumulate gradients for the xyz parameter during training.
+        self.denom: Initializes a tensor to track the denominator for gradient accumulation.
+        '''
         self.percent_dense = training_args.percent_dense
         self.xyz_gradient_accum = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
         self.denom = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
-
+        '''
+        Define Optimizable Parameters:
+        Creates a list l of parameter groups, each containing:
+        The parameter tensor (e.g., self._xyz, self._features_dc, etc.).
+        The learning rate for that parameter.
+        A name for the parameter group (used later for scheduling or debugging).
+        '''
         l = [
             {'params': [self._xyz], 'lr': training_args.position_lr_init * self.spatial_lr_scale, "name": "xyz"},
             {'params': [self._features_dc], 'lr': training_args.feature_lr, "name": "f_dc"},
@@ -233,7 +249,11 @@ class GaussianModel:
             {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling"},
             {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"}
         ]
-
+        '''
+        Initialize Optimizers:
+        Depending on the optimizer_type, initializes either a default Adam optimizer or a custom SparseGaussianAdam optimizer.
+        If SparseGaussianAdam is unavailable, falls back to the default Adam optimizer.
+        '''
         if self.optimizer_type == "default":
             self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
         elif self.optimizer_type == "sparse_adam":
@@ -242,18 +262,28 @@ class GaussianModel:
             except:
                 # A special version of the rasterizer is required to enable sparse adam
                 self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
-
+        '''
+        Exposure Optimizer:
+        Initializes a separate optimizer for the exposure parameter (self._exposure). 
+        '''
         self.exposure_optimizer = torch.optim.Adam([self._exposure])
-
-        self.xyz_scheduler_args = get_expon_lr_func(lr_init=training_args.position_lr_init*self.spatial_lr_scale,
-                                                    lr_final=training_args.position_lr_final*self.spatial_lr_scale,
-                                                    lr_delay_mult=training_args.position_lr_delay_mult,
-                                                    max_steps=training_args.position_lr_max_steps)
+        '''
+        Learning Rate Schedulers:
+        Configures exponential learning rate schedulers for xyz and exposure parameters using the get_expon_lr_func utility function.
+        These schedulers define how the learning rate evolves over training iterations.
+        '''
+        self.xyz_scheduler_args = get_expon_lr_func(lr_init = training_args.position_lr_init*self.spatial_lr_scale
+                                                    , lr_final = training_args.position_lr_final*self.spatial_lr_scale
+                                                    , lr_delay_mult = training_args.position_lr_delay_mult
+                                                    , max_steps = training_args.position_lr_max_steps
+                                                    )
         
-        self.exposure_scheduler_args = get_expon_lr_func(training_args.exposure_lr_init, training_args.exposure_lr_final,
-                                                        lr_delay_steps=training_args.exposure_lr_delay_steps,
-                                                        lr_delay_mult=training_args.exposure_lr_delay_mult,
-                                                        max_steps=training_args.iterations)
+        self.exposure_scheduler_args = get_expon_lr_func(training_args.exposure_lr_init
+                                                        , training_args.exposure_lr_final
+                                                        , lr_delay_steps = training_args.exposure_lr_delay_steps
+                                                        , lr_delay_mult = training_args.exposure_lr_delay_mult
+                                                        , max_steps = training_args.iterations
+                                                        )
 
     def update_learning_rate(self, iteration):
         ''' Learning rate scheduling per step '''
