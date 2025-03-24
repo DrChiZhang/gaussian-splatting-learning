@@ -98,11 +98,23 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
     viewpoint_stack = scene.getTrainCameras().copy()
     viewpoint_indices = list(range(len(viewpoint_stack)))
+    '''
+    Initialize variables to track exponential moving averages (EMAs) for specific metrics. 
+    '''
     ema_loss_for_log = 0.0
     ema_Ll1depth_for_log = 0.0
-
+    '''
+    Initialize the progress bar with the specified number of iterations.
+    The tqdm constructor is passed an iterable, which in this case is a range object representing the sequence of training iterations. 
+    The range(first_iter, opt.iterations) generates a sequence starting from first_iter and ending at opt.iterations - 1. 
+    The desc="Training progress" argument adds a descriptive label to the progress bar, making it clear to the user that it represents the progress of the training process. 
+    The progress bar dynamically updates in the terminal as the training loop iterates, providing real-time feedback on the training's progress.
+    '''
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
     first_iter += 1
+    '''
+    Main training loop.
+    '''
     for iteration in range(first_iter, opt.iterations + 1):
         if network_gui.conn == None:
             network_gui.try_connect()
